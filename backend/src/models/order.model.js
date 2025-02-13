@@ -102,6 +102,10 @@ const CartSchema = new Schema(
     transactionId: {
       type: String,
       required: true,
+    }, 
+    status: {
+      type: String,
+      default: "pending"
     }
   },
   { timestamps: true }
