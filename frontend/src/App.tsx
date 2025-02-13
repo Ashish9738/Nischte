@@ -2,7 +2,7 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import { Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectRoute";
 import { Home } from "./pages/Home";
-import { NotFound } from "./components/NotFound";
+import NotFound from "./components/NotFound";
 import { Shops } from "./pages/Shops";
 import { AboutUs } from "./pages/AboutUs";
 import { ContactUs } from "./pages/ContactUs";
