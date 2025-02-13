@@ -1,6 +1,7 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { debounce } from "lodash";
 import {
   Card,
   CardContent,
@@ -27,6 +28,8 @@ interface ShopResponse {
   shops: Shop[];
   total: number;
   hasNextPage: boolean;
+  currentPage: number;
+  totalPages: number;
 }
 
 export const Shops: FC = () => {
@@ -34,7 +37,7 @@ export const Shops: FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [charLimit, setCharLimit] = useState(70);
   const [page, setPage] = useState(1);
-  const [itemsPerPage] = useState(15);
+  const [itemsPerPage] = useState(9);
   const [loading, setLoading] = useState(false);
   const [filteredShops, setFilteredShops] = useState<Shop[]>([]);
   const [total, setTotal] = useState(0);
@@ -42,51 +45,47 @@ export const Shops: FC = () => {
 
   const navigate = useNavigate();
 
-  const fetchShops = async (currentPage: number) => {
+  const fetchShops = useCallback(async (currentPage: number, search: string = "") => {
     try {
       setLoading(true);
       const res = await axios.get<ShopResponse>(
-        `${API}/api/v1/shop?page=${currentPage}&limit=${itemsPerPage}`
+        `${API}/api/v1/shop?page=${currentPage}&limit=${itemsPerPage}&search=${search}`
       );
 
       if (currentPage === 1) {
         setShops(res.data.shops);
-        setFilteredShops(res.data.shops);
       } else {
-        const newShops = [...shops, ...res.data.shops];
-        setShops(newShops);
-        setFilteredShops(newShops);
+        setShops(prev => [...prev, ...res.data.shops]);
       }
 
       setTotal(res.data.total);
-      setHasMore(shops.length + res.data.shops.length < res.data.total);
+      setHasMore(res.data.currentPage < res.data.totalPages);
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch shops", error);
-    } finally {
       setLoading(false);
     }
+  }, [itemsPerPage]);
+
+  const debouncedSearch = useCallback(
+    debounce((searchQuery: string) => {
+      setPage(1); // Reset to first page for new search
+      fetchShops(1, searchQuery);
+    }, 300),
+    [fetchShops]
+  );
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchTerm(query);
+    debouncedSearch(query);
   };
 
   const loadMore = () => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      fetchShops(nextPage);
-    }
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchTerm(query);
-    if (query) {
-      const filtered = shops.filter(
-        (shop) =>
-          shop.shopName.toLowerCase().includes(query.toLowerCase()) ||
-          shop.address.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredShops(filtered);
-    } else {
-      setFilteredShops(shops);
+      fetchShops(nextPage, searchTerm);
     }
   };
 
@@ -113,8 +112,10 @@ export const Shops: FC = () => {
 
   useEffect(() => {
     fetchShops(1);
-  }, []);
-
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [fetchShops]);
   const shouldShowViewMore = !searchTerm && hasMore && shops.length < total;
 
   return (
@@ -129,13 +130,13 @@ export const Shops: FC = () => {
                 type="text"
                 placeholder="Search shops..."
                 value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={handleSearch}
                 className="w-full"
               />
             </div>
           </div>
 
-          {filteredShops.length === 0 && !loading ? (
+          {shops.length === 0 && !loading ? (
             <div className="text-center py-8">
               <p className="text-gray-500">No shops found</p>
             </div>
@@ -143,9 +144,9 @@ export const Shops: FC = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? (
-                  <SkeletonGrid count={filteredShops.length} />
+                  <SkeletonGrid count={shops.length} />
                 ) : (
-                  filteredShops.map((shop) => (
+                  shops.map((shop) => (
                     <Card
                       key={shop._id}
                       className="cursor-pointer mb-4 flex hover:shadow-lg transition-shadow"
