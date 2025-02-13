@@ -1,35 +1,40 @@
-    import express from "express";
-    import cors from "cors";
-    import cookieParser from "cookie-parser";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
 
-    const app = express();
+dotenv.config();
 
-    const allowedOrigins = ['http://localhost:5173'];
+const app = express();
 
-    app.use(cors({
-      origin: allowedOrigins,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-      credentials: true, 
-    }));
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-    app.use(express.static("public"));
-    app.use(cookieParser());
+const allowedOrigins = ['http://localhost:5173'];
 
-    // Route Dec
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true, 
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.static("public"));
+app.use(cookieParser());
 
-    import shopRouter from "../src/routes/shop.route.js";
-    import shopMenuRouter from "../src/routes/menu.route.js";
-    import orderRouter from "../src/routes/order.route.js";
-    import offerRouter from "../src/routes/offer.route.js";
-    import supportRouter from "../src/routes/support.route.js";
-    import paymentRouter from "../src/routes/payment.route.js";
+// Route Dec
 
-    app.use("/api/v1/shop", shopMenuRouter);
-    app.use("/api/v1/shop", shopRouter);
-    app.use("/api/v1/support", supportRouter);
-    app.use("/api/v1/order", orderRouter);
-    app.use("/api/v1/offer", offerRouter);
-    app.use("/api/v1/payment", paymentRouter);
+import shopRouter from "../src/routes/shop.route.js";
+import shopMenuRouter from "../src/routes/menu.route.js";
+import orderRouter from "../src/routes/order.route.js";
+import offerRouter from "../src/routes/offer.route.js";
+import supportRouter from "../src/routes/support.route.js";
+import paymentRouter from "../src/routes/payment.route.js";
+import userRouter from "../src/routes/user.route.js"
 
-    export default app;
+app.use("/api/v1/shop", shopMenuRouter);
+app.use("/api/v1/shop", shopRouter);
+app.use("/api/v1/support", supportRouter);
+app.use("/api/v1/order", orderRouter);
+app.use("/api/v1/offer", offerRouter);
+app.use("/api/v1/payment", paymentRouter);
+app.use("/api/v1/user", userRouter);
+
+export default app;
