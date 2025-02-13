@@ -14,23 +14,24 @@ export const initiatePayment = async (req, res) => {
     const parsedData = JSON.parse(plainData);
     const { amount } = parsedData;
 
-    if (isNaN(amount)) {
-      return res.status(400).json({ message: "Invalid data - amount is required" });
+    const amountInPaise = Number(amount) * 100;
+    if (isNaN(amountInPaise) || amountInPaise <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
     }
 
     let merchantTransactionId = uniqid();
 
     const tempPaymentData = {
       merchantTransactionId,
-      amount: amount * 100
+      amount: amountInPaise
     };
 
     const encodedData = Buffer.from(JSON.stringify(tempPaymentData)).toString('base64');
 
     let normalPayLoad = {
       merchantId: MERCHANT_ID,
-      merchantTransactionId: merchantTransactionId,
-      amount: amount * 100,
+      merchantTransactionId,
+      amount: amountInPaise,
       redirectUrl: `${FRONTEND_URL}/payment/callback?data=${encodedData}`,
       redirectMode: "REDIRECT",
       paymentInstrument: {
@@ -72,6 +73,7 @@ export const initiatePayment = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error("Payment initiation error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to initiate the payment",
@@ -91,6 +93,8 @@ export const validatePayment = async (req, res) => {
       });
     }
 
+    console.log(`Validating Payment for Transaction ID: ${merchantTransactionId}`);
+
     const statusUrl = `${PHONEPE_HOST_URL}/pg/v1/status/${MERCHANT_ID}/${merchantTransactionId}`;
     const string = `/pg/v1/status/${MERCHANT_ID}/${merchantTransactionId}${SALT_KEY}`;
     const sha256_val = sha256(string);
@@ -105,9 +109,9 @@ export const validatePayment = async (req, res) => {
       },
     });
 
-    if (response.data.code === "PAYMENT_SUCCESS") {
+    if (response.data.code?.toUpperCase() === "PAYMENT_SUCCESS") {
       const paymentData = response.data.data;
-      
+
       const newPayment = new Payment({
         merchantTransactionId: paymentData.merchantTransactionId,
         transactionId: paymentData.transactionId,
@@ -116,88 +120,24 @@ export const validatePayment = async (req, res) => {
         paymentInstrument: paymentData.paymentInstrument,
       });
 
-      await newPayment.save();
+      const paymentDetails = await newPayment.save();
 
-      const redirectUrl = `${process.env.FRONTEND_URL}/payment/success?txnId=${merchantTransactionId}`;
-      
-      return res.redirect(redirectUrl);
+      return res.status(200).json({
+        success: true,
+        paymentDetails
+      });
     } else {
-      const redirectUrl = `${process.env.FRONTEND_URL}/payment/failure?error=Payment failed&txnId=${merchantTransactionId}`;
-      
-      return res.redirect(redirectUrl);
-    }
-  } catch (error) {
-    const redirectUrl = `${process.env.FRONTEND_URL}/payment/failure?error=${encodeURIComponent(error.message)}`;
-    return res.redirect(redirectUrl);
-  }
-};
-
-
-export const savePaymentDetails = async (req, res) => {
-  try {
-    const { merchantTransactionId } = req.body;
-
-    if (!merchantTransactionId) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: merchantTransactionId"
-      });
-    }
-
-    const statusUrl = `${PHONEPE_HOST_URL}/pg/v1/status/${MERCHANT_ID}/${merchantTransactionId}`;
-    const string = `/pg/v1/status/${MERCHANT_ID}/${merchantTransactionId}${SALT_KEY}`;
-    const sha256_val = sha256(string);
-    const xVerifyChecksum = `${sha256_val}###${SALT_INDEX}`;
-
-    const response = await axios.get(statusUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-VERIFY": xVerifyChecksum,
-        "X-MERCHANT-ID": MERCHANT_ID,
-        accept: "application/json",
-      },
-    });
-
-    if (response.data && response.data.code === "PAYMENT_SUCCESS") {
-      const paymentData = response.data.data;
-      
-      const existingPayment = await Payment.findOne({ merchantTransactionId });
-      
-      if (existingPayment) {
-        return res.status(200).json({
-          success: true,
-          message: "Payment already saved",
-          data: existingPayment
-        });
-      }
-
-      const newPayment = new Payment({
-        merchantTransactionId: paymentData.merchantTransactionId,
-        transactionId: paymentData.transactionId,
-        amount: paymentData.amount,
-        state: paymentData.state,
-        paymentInstrument: paymentData.paymentInstrument,
-      });
-
-      await newPayment.save();
-
-      res.status(200).json({
-        success: true,
-        message: "Payment details saved successfully.",
-        data: paymentData,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: "Payment validation failed.",
-        data: response.data,
+        message: "Payment failure"
       });
     }
   } catch (error) {
-    res.status(500).json({
+    console.error("Payment validation error:", error);
+    return res.status(500).json({
       success: false,
-      message: "Failed to save payment details",
-      error: error.message,
+      message: "Payment validation failed",
+      error: error.message
     });
   }
 };

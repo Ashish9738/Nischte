@@ -10,10 +10,22 @@ export const createOrder = async (req, res) => {
       originalQuantity,
       totalItems,
       totalSavings,
-      // deliveryStatus = "Pending",
     } = req.body;
 
-    // console.log("body", req.body);
+    const existingOrder = await Order.findOne({ transactionId });
+    if (existingOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "Order with this transaction ID already exists.",
+      });
+    }
+
+    if (!userId || !items || items.length === 0 || !cartTotal || !transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields.",
+      });
+    }
 
     const order = new Order({
       userId,
@@ -41,6 +53,7 @@ export const createOrder = async (req, res) => {
     });
   }
 };
+
 
 export const getAllUserOrder = async (req, res) => {
   try {
