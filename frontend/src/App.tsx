@@ -23,7 +23,7 @@ import { UserOrder } from "./pages/UserOrder";
 import { ShopOrders } from "./pages/ShopOrders";
 import { Items } from "./pages/Items";
 import { Support } from "./pages/Support";
-import { PaymentCallback, PaymentFailure, PaymentSuccess } from "./pages/Payment";
+import { PaymentCallback } from "./pages/Payment";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -55,9 +55,7 @@ function App() {
             <Route path="/contact-us" element={<ContactUs />} />
             
             <Route path="/payment/callback" element={<PaymentCallback />} />
-            <Route path="/payment/success" element={<PaymentSuccess />} />
-            <Route path="/payment/failure" element={<PaymentFailure />} />
-
+          
             <Route path="/shop">
               <Route
                 path="manage"

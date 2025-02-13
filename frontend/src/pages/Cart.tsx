@@ -276,9 +276,9 @@ export const Cart = () => {
       );
   
       if (response.data.success) {
-        // Store the transaction details
         localStorage.setItem('currentTransactionId', response.data.merchantTransactionId);
         localStorage.setItem('paymentData', response.data.data);
+        console.log("response data: payement: ", response.data)
         window.location.href = response.data.redirectUrl;
       } else {
         toast.error("Payment initiation failed");
