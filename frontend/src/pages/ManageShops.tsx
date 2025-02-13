@@ -26,6 +26,8 @@ export const ManageShops: FC = () => {
   const { user } = useUser();
   const userId = user?.id;
 
+  const userRole =  user?.publicMetadata.role;
+
   const [shopDetails, setShopDetails] = useState<Shop[]>([]);
   const [charLimit, setCharLimit] = useState(70);
   const [loading, setLoading] = useState<Boolean>(false);
@@ -61,6 +63,7 @@ export const ManageShops: FC = () => {
 
   useEffect(() => {
     fetchUserShopDetails();
+    console.log("user role: ", userRole)
   }, []);
 
   useEffect(() => {

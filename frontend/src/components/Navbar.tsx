@@ -7,10 +7,11 @@ import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
 import { AboutUs } from "@/pages/AboutUs";
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Button } from "./ui/button";
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded  } = useUser();
   const userId = user?.id;
   const { state } = useCart();
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
@@ -30,11 +31,22 @@ export const Navbar: React.FC = () => {
 
           {/* Right section */}
           <div className="flex items-center space-x-3 md:space-x-6 lg:space-x-7">
-            <div>
-                <SignedOut>
-                  <SignInButton fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />
-                </SignedOut>
-                <SignedIn>{user && <UserButton />}</SignedIn>
+          <div>
+              {!isSignedIn && (
+                <Button className="ghost">
+                  <SignedOut>
+                    <SignInButton
+                      fallbackRedirectUrl="/"
+                      signUpFallbackRedirectUrl="/"
+                    />
+                  </SignedOut>
+                </Button>
+              )}
+              {isLoaded ? (
+                <SignedIn>
+                  <UserButton />
+                </SignedIn>
+              ) : null}
             </div>
 
             {/* Cart Icon */}

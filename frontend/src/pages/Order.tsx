@@ -8,7 +8,7 @@ import { useCart } from "@/context/CartContext";
 import axios from "axios";
 import { API } from "@/utils/api";
 import { toast } from "sonner";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { useQuery } from "@/Hooks/useQuery";
 
 interface OrderDetails {
@@ -49,7 +49,10 @@ export const Order = () => {
 
   useEffect(() => {
     const createOrder = async (paymentId: string) => {
+      const { getToken } = useAuth();
       try {
+
+        const token = await getToken();
         if (!isLoaded) {
           return;
         }
@@ -75,7 +78,11 @@ export const Order = () => {
           totalSavings: orderSummary.totalSavings,
         };
 
-        const response = await axios.post(`${API}/api/v1/order`, orderData);
+        const response = await axios.post(`${API}/api/v1/order`, orderData, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
         if (!response.data.success) {
           throw new Error(response.data.message || "Failed to create order");

@@ -7,10 +7,12 @@ import { API } from "@/utils/api";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import { ItemFields } from "@/data/ItemFields";
+import { useAuth } from "@clerk/clerk-react";
 
 export const AddMenuItem: FC = () => {
   const { shopId } = useParams();
   const navigate = useNavigate();
+  const { getToken } = useAuth();
 
   const handleAddMenuItem = async (
     data: Record<string, any>,
@@ -31,8 +33,13 @@ export const AddMenuItem: FC = () => {
     }
 
     try {
+
+      const token = await getToken();
       await axios.post(`${API}/api/v1/shop/${shopId}/menu`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+         },
       });
       toast.success("Menu item added successfully!");
       navigate(`/shop/manage/${shopId}`);

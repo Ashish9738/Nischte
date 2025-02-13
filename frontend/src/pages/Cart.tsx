@@ -11,10 +11,11 @@ import { Footer } from "@/components/Footer";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import axios from "axios";
 import { API } from "@/utils/api";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { ImCancelCircle } from "react-icons/im";  
 import CryptoJS from "crypto-js";
+import { useActionData } from "react-router-dom";
 
 declare global {
   interface Window {
@@ -24,6 +25,7 @@ declare global {
 
 export const Cart = () => {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const userId = user?.id;
 
   const { state, dispatch } = useCart();
@@ -78,6 +80,8 @@ export const Cart = () => {
   const fetchOfferDetails = async () => {
     setIsLoadingOffers(true);
     try {
+
+      const token = await getToken();
       const offerIds = Array.from(
         new Set(
           state.items
@@ -96,6 +100,10 @@ export const Cart = () => {
         `${API}/api/v1/offer/eligible`,
         {
           offerIds: offerIds,
+        }, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
         }
       );
 

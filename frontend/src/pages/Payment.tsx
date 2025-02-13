@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { API } from '@/utils/api';
 import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
 
 export const PaymentCallback = () => {
     const navigate = useNavigate();
@@ -10,7 +11,10 @@ export const PaymentCallback = () => {
 
     useEffect(() => {
         const handleCallback = async () => {
+            const { getToken } = useAuth();
             try {
+
+                const token = await getToken();
                 const txnId = localStorage.getItem('currentTransactionId');
                 if (!txnId) throw new Error('Transaction ID not found');
 
@@ -27,7 +31,12 @@ export const PaymentCallback = () => {
                     transactionId: txnId,
                 };
 
-                const orderResponse = await axios.post(`${API}/api/v1/order/create`, orderData);
+                const orderResponse = await axios.post(`${API}/api/v1/order/create`, orderData, {
+                    headers: {
+
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
 
                 if (!orderResponse.data.success) throw new Error('Order creation failed');
 

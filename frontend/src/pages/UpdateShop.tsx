@@ -4,7 +4,7 @@ import { ShopFields } from "@/data/ShopField";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { API } from "@/utils/api";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -20,6 +20,7 @@ interface Shop {
 
 export const UpdateShop: FC = () => {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { shopId } = useParams();
   const navigate = useNavigate();
   const [shopDetails, setShopDetails] = useState<Shop>();
@@ -53,9 +54,11 @@ export const UpdateShop: FC = () => {
     }
 
     try {
+      const token = await getToken();
       const response = await axios.patch(`${API}/api/v1/shop/${shopId}`, formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         }
       });
 
