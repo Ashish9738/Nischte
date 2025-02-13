@@ -13,9 +13,7 @@ import axios from "axios";
 import { API } from "@/utils/api";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { ImCancelCircle } from "react-icons/im";  
-import CryptoJS from "crypto-js";
-import { useActionData } from "react-router-dom";
+import { ImCancelCircle } from "react-icons/im";
 
 declare global {
   interface Window {
@@ -275,12 +273,17 @@ export const Cart = () => {
     const { cartTotal } = orderSummary;
     
     try {
+      const token = await getToken();
       const plainData = JSON.stringify({
         amount: cartTotal,
       });
   
       const response = await axios.get(
-        `${API}/api/v1/payment/initiate?data=${encodeURIComponent(plainData)}`
+        `${API}/api/v1/payment/initiate?data=${encodeURIComponent(plainData)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        }
       );
   
       if (response.data.success) {

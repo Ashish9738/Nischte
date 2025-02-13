@@ -18,7 +18,7 @@ import { UpdateMenu } from "./pages/UpdateMenu";
 import { UpdateOffer } from "./pages/UpdateOffer";
 import { Cart } from "./pages/Cart";
 import { CartProvider } from "./context/CartContext";
-import { Order } from "./pages/Order";
+// import { Order } from "./pages/Order";
 import { UserOrder } from "./pages/UserOrder";
 import { ShopOrders } from "./pages/ShopOrders";
 import { Items } from "./pages/Items";
@@ -50,7 +50,7 @@ function App() {
             />
             <Route path="/cart" element={<Cart />} />
             <Route path="/:userId/order" element={<UserOrder />} />
-            <Route path="/order" element={<Order />} />
+            {/* <Route path="/order" element={<Order />} /> */}
             <Route path="/about-us" element={<AboutUs />} />
             <Route path="/contact-us" element={<ContactUs />} />
             

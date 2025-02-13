@@ -20,6 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@clerk/clerk-react";
 
 interface OrderItem {
   _id: string;
@@ -49,6 +51,7 @@ interface OrderDetails {
   items: OrderItem[];
   transactionId: string;
   createdAt?: string;
+  status: string;
 }
 
 export const ShopOrders: FC = () => {
@@ -56,6 +59,7 @@ export const ShopOrders: FC = () => {
   const [orders, setOrders] = useState<OrderDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { getToken } = useAuth();
 
   const fetchOwnerOrderDetails = async () => {
     try {
@@ -75,6 +79,30 @@ export const ShopOrders: FC = () => {
       setLoading(false);
     }
   };
+
+  const handlePickupStatus = async (orderId: string) => {
+    try {
+      const token = await getToken();
+      await axios.patch(`${API}/api/v1/order/${orderId}/update-status`, {
+        status: 'collected',
+      }, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+  
+      // Update the order status in the local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order._id === orderId 
+            ? { ...order, status: 'collected' }
+            : order
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update pickup status:", error);
+    }
+  }
 
   useEffect(() => {
     if (shopId) {
@@ -147,9 +175,18 @@ export const ShopOrders: FC = () => {
                       Transaction ID: {order.transactionId}
                     </CardDescription>
                   </div>
+                  <Button 
+                    onClick={() => handlePickupStatus(order._id)}
+                    disabled={order.status === 'collected'}
+                    variant={order.status === 'collected' ? "secondary" : "default"}
+                    className="capitalize"
+                  >
+                    {order.status || 'pending'}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Rest of the component remains the same */}
                 <Accordion type="single" collapsible>
                   <AccordionItem value="items">
                     <AccordionTrigger>

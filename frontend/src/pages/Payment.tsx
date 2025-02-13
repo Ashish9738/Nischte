@@ -8,17 +8,22 @@ import { useAuth } from '@clerk/clerk-react';
 export const PaymentCallback = () => {
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(true);
+    const { getToken } = useAuth();
 
     useEffect(() => {
         const handleCallback = async () => {
-            const { getToken } = useAuth();
             try {
-
+                console.log("first")
                 const token = await getToken();
+                console.log("token", token);
                 const txnId = localStorage.getItem('currentTransactionId');
                 if (!txnId) throw new Error('Transaction ID not found');
 
-                const response = await axios.get(`${API}/api/v1/payment/validate/${txnId}`);
+                const response = await axios.get(`${API}/api/v1/payment/validate/${txnId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                 if (!response.data.success) throw new Error('Payment validation failed');
 
                 const orderSummary = localStorage.getItem('orderSummary');
@@ -30,7 +35,7 @@ export const PaymentCallback = () => {
                     ...parsedOrderSummary,
                     transactionId: txnId,
                 };
-
+                console.log("token here in payment: ", token);
                 const orderResponse = await axios.post(`${API}/api/v1/order/create`, orderData, {
                     headers: {
 
