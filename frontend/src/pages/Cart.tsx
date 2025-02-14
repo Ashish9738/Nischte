@@ -11,9 +11,9 @@ import { Footer } from "@/components/Footer";
 import { FaMinus, FaPlus } from "react-icons/fa";
 import axios from "axios";
 import { API } from "@/utils/api";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { ImCancelCircle } from "react-icons/im";  
+import { ImCancelCircle } from "react-icons/im";
 
 declare global {
   interface Window {
@@ -23,6 +23,7 @@ declare global {
 
 export const Cart = () => {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const userId = user?.id;
 
   const { state, dispatch } = useCart();
@@ -77,6 +78,8 @@ export const Cart = () => {
   const fetchOfferDetails = async () => {
     setIsLoadingOffers(true);
     try {
+
+      const token = await getToken();
       const offerIds = Array.from(
         new Set(
           state.items
@@ -95,6 +98,10 @@ export const Cart = () => {
         `${API}/api/v1/offer/eligible`,
         {
           offerIds: offerIds,
+        }, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
         }
       );
 
@@ -264,52 +271,35 @@ export const Cart = () => {
   const handleCheckout = async () => {
     const orderSummary = generateOrderSummary();
     const { cartTotal } = orderSummary;
-
-    console.log("order summary in cart", orderSummary);
-
+    
     try {
-      const {
-        data: { order },
-      } = await axios.post(`${API}/api/v1/payment/checkout`, {
+      const token = await getToken();
+      const plainData = JSON.stringify({
         amount: cartTotal,
       });
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY,
-        amount: order.amount,
-        currency: "INR",
-        name: "Ashish",
-        description: "testing",
-        image: "hey",
-        order_id: order.id,
-        callback_url: `${API}/api/v1/payment/paymentverification`,
-        redirect: true,
-        prefill: {
-          name: "Ashish",
-          email: "ashish@gmail.com",
-          contact: "9876543210",
-        },
-        notes: {
-          address: "Razorpay Corporate Office",
-          orderSummary: JSON.stringify(orderSummary),
-        },
-        theme: {
-          color: "#121212",
-        },
-        modal: {
-          ondismiss: function () {
-            toast.info("Payment cancelled");
-          },
-        },
-      };
-
-      const razor = new window.Razorpay(options);
-      razor.open();
+  
+      const response = await axios.get(
+        `${API}/api/v1/payment/initiate?data=${encodeURIComponent(plainData)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        }
+      );
+  
+      if (response.data.success) {
+        localStorage.setItem('currentTransactionId', response.data.merchantTransactionId);
+        localStorage.setItem('paymentData', response.data.data);
+        console.log("response data: payement: ", response.data)
+        window.location.href = response.data.redirectUrl;
+      } else {
+        toast.error("Payment initiation failed");
+      }
     } catch (error) {
-      console.error("Error during checkout:", error);
+      console.error("Checkout error:", error);
       toast.error("Checkout failed");
     }
   };
+  
 
   const handleItemCancel = (itemId: string) => {
     dispatch({

@@ -102,12 +102,11 @@ const CartSchema = new Schema(
     transactionId: {
       type: String,
       required: true,
-    },
-    deliveryStatus: {
+    }, 
+    status: {
       type: String,
-      enum: ["pending", "successful"],
-      default: "successful",
-    },
+      default: "pending"
+    }
   },
   { timestamps: true }
 );

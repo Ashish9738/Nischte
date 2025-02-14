@@ -5,7 +5,7 @@ import Form from "@/components/Form";
 import { API } from "@/utils/api";
 import axios from "axios";
 import { toast } from "sonner";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -22,6 +22,7 @@ interface Item {
 export const UpdateMenu: FC = () => {
   const [item, setItem] = useState<Item>();
   const { shopId, menuId } = useParams();
+  const { getToken } = useAuth();
 
   const { user } = useUser();
 
@@ -68,11 +69,15 @@ export const UpdateMenu: FC = () => {
     }
 
     try {
+      const token = await getToken();
       const res = await axios.patch(
         `${API}/api/v1/shop/${shopId}/menu/${menuId}`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { 
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${token}`
+          },
         }
       );
       console.log("resff:", res.data.items);

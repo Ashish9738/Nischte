@@ -1,12 +1,11 @@
 import { Router } from "express";
-import {
-  checkout,
-  paymentVerification,
-} from "../controller/payment.controller.js";
+import { initiatePayment, validatePayment } from "../controller/payment.controller.js";
+import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
 
 const router = Router();
 
-router.route("/checkout").post(checkout);
-router.route("/paymentVerification").post(paymentVerification);
+router.get("/initiate",ClerkExpressRequireAuth(), initiatePayment);
+router.get("/validate/:merchantTransactionId",ClerkExpressRequireAuth(), validatePayment);
+
 
 export default router;

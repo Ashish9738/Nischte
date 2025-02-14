@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { useAuth } from "@clerk/clerk-react";
 
 interface OfferType {
   name: string;
@@ -33,6 +34,7 @@ interface Offer {
 export const UpdateOffer: FC = () => {
   const { offerId, shopId, menuId } = useParams();
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [offer, setOffer] = useState<Offer | null>(null);
 
   const fetchOfferDetails = async () => {
@@ -51,6 +53,7 @@ export const UpdateOffer: FC = () => {
     resetForm: () => void
   ) => {
     try {
+      const token = await getToken();
       const payload = {
         offerType: {
           name: data["offerType.name"],
@@ -66,7 +69,11 @@ export const UpdateOffer: FC = () => {
         },
       };
 
-      await axios.patch(`${API}/api/v1/offer/${offerId}`, payload);
+      await axios.patch(`${API}/api/v1/offer/${offerId}`, payload, {
+        headers : {
+          "Authorization": `Bearer ${token}`
+        }
+      });
 
       toast.success("Offer updated successfully!");
       resetForm();

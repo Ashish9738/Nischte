@@ -24,6 +24,7 @@ import { MdDelete } from "react-icons/md";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { useAuth } from "@clerk/clerk-react";
 
 interface OfferType {
   name: string;
@@ -48,7 +49,7 @@ interface Offer {
 export const Offer: FC = () => {
   const { shopId, menuId } = useParams();
   const navigate = useNavigate();
-
+  const { getToken } = useAuth();
   const [offers, setOffer] = useState<Offer[]>([]);
   const [loading, setloading] = useState<Boolean>(false);
 
@@ -70,7 +71,12 @@ export const Offer: FC = () => {
     };
 
     try {
-      await axios.post(`${API}/api/v1/offer`, offerData);
+      const token = await getToken();
+      await axios.post(`${API}/api/v1/offer`, offerData, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       resetForm();
       fetchOffer();
     } catch (error) {

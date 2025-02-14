@@ -34,7 +34,7 @@ export const createShop = async (req, res) => {
 export const getShops = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 9;
+    const limit = parseInt(req.query.limit) || 15;
     const search = req.query.search || "";
 
     const skip = (page - 1) * limit;
@@ -61,10 +61,13 @@ export const getShops = async (req, res) => {
       total,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
     });
   } catch (error) {
+    console.error("Error fetching shops:", error);
     res.status(500).json({
       message: "Failed to get the shops",
+      error: error.message,
     });
   }
 };

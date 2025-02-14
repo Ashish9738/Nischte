@@ -1,49 +1,21 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-} from "@clerk/clerk-react";
-import { Link, useNavigate } from "react-router-dom";
+// src/components/Navbar.tsx
+import React from "react";
 import { GiHamburgerMenu } from "react-icons/gi";
-import { IoMdCart } from "react-icons/io";
-import { Button } from "./ui/button";
-import { useUser } from "@clerk/clerk-react";
+import { IoMdCart, IoMdClose } from "react-icons/io";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import { useCart } from "@/context/CartContext";
+import { Link, useNavigate } from "react-router-dom";
+import { AboutUs } from "@/pages/AboutUs";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Button } from "./ui/button";
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded  } = useUser();
   const userId = user?.id;
-
   const { state } = useCart();
-
-  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const { isSignedIn, isLoaded } = useUser();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev);
-  };
-
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  
   const handleCartClick = () => {
     navigate("/cart");
   };
@@ -52,14 +24,14 @@ export const Navbar: React.FC = () => {
     <div className="sticky top-0 z-50 bg-white ">
       <div className="max-w-screen-xl mx-auto">
         <div className="flex justify-between items-center pt-4 relative z-20 mb-5">
-          {/* left section  */}
+          {/* Left section */}
           <Link to="/">
-            <h1 className="text-2xl font-bold `cursor-pointer">Nischte</h1>
+            <h1 className="text-2xl font-bold cursor-pointer">Nischte</h1>
           </Link>
 
-          {/* Right section  */}
+          {/* Right section */}
           <div className="flex items-center space-x-3 md:space-x-6 lg:space-x-7">
-            <div>
+          <div>
               {!isSignedIn && (
                 <Button className="ghost">
                   <SignedOut>
@@ -77,6 +49,7 @@ export const Navbar: React.FC = () => {
               ) : null}
             </div>
 
+            {/* Cart Icon */}
             <div className="relative cursor-pointer" onClick={handleCartClick}>
               <IoMdCart size={29} />
               {state.items.length > 0 && (
@@ -87,87 +60,62 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Dropdown Menu */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={toggleDropdown}
-                aria-label="Toggle Menu"
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <GiHamburgerMenu size={24} />
-              </button>
+            <div className="relative lg:m">
+              <Popover>
+               <PopoverTrigger onClick={() => setIsDropdownOpen((prev) => !prev)}>
+                  <button className="p-2">
+                    {isDropdownOpen ? <IoMdClose size={24} /> : <GiHamburgerMenu size={24} />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="bg-white md:mr-35"
+                >
+                  <Link
+                    to="/shops"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Shops
+                  </Link>
+                  <Link
+                    to="/items"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Items
+                  </Link>
+                  <Link
+                    to={`/${userId}/order`}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    My Orders
+                  </Link>
 
-              {/* Dropdown */}
-              <div
-                className={`absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 transform origin-top-right transition-all duration-200 ${
-                  isDropdownOpen
-                    ? "opacity-100 scale-100"
-                    : "opacity-0 scale-95 pointer-events-none"
-                }`}
-              >
-                <Link
-                  to="/shops"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  Shops
-                </Link>
-                <Link
-                  to="/items"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  Items
-                </Link>
-                <Link
-                  to={`/${userId}/order`}
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  My Orders
-                </Link>
-                <Link
-                  to="/about-us"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  About us
-                </Link>
-                {/* <Link
-                  to="/contact-us"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  Contact us
-                </Link> */}
-                <Link
-                  to={`/support/${userId}`}
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  Support
-                </Link>
+                  <AboutUs /> 
 
-                {/* Owner */}
-                <div className="border-t border-gray-100 mt-1 pt-1">
-                  <div className="px-4 py-2 text-sm font-medium text-gray-900">
-                    Owners
+                  {/* <Link
+                    to={`/support/${userId}`}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Support
+                  </Link> */}
+
+                  {/* Owner section */}
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <div className="px-4 py-2 text-sm font-medium text-gray-900">Owners</div>
+                    <Link
+                      to="/shop/register"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Register shop
+                    </Link>
+                    <Link
+                      to="/shop/manage"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Manage shops
+                    </Link>
                   </div>
-                  <Link
-                    to="/shop/register"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Register shop
-                  </Link>
-                  <Link
-                    to="/shop/manage"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    Manage shops
-                  </Link>
-                </div>
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

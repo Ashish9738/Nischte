@@ -10,10 +10,22 @@ export const createOrder = async (req, res) => {
       originalQuantity,
       totalItems,
       totalSavings,
-      // deliveryStatus = "Pending",
     } = req.body;
 
-    // console.log("body", req.body);
+    const existingOrder = await Order.findOne({ transactionId });
+    if (existingOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "Order with this transaction ID already exists.",
+      });
+    }
+
+    if (!userId || !items || items.length === 0 || !cartTotal || !transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields.",
+      });
+    }
 
     const order = new Order({
       userId,
@@ -41,6 +53,7 @@ export const createOrder = async (req, res) => {
     });
   }
 };
+
 
 export const getAllUserOrder = async (req, res) => {
   try {
@@ -93,3 +106,29 @@ export const deleteOrder = async (req, res) => {
     });
   }
 };
+
+export const updateOrderStatus = async(req, res) => {
+  try {
+    const { orderId } = req.params;
+    const status = "collected";
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { status }, 
+      { new: true } 
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.status(200).json({
+      message: "Order status updated successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update the order status",
+      error: error.message,
+    });
+  }
+}

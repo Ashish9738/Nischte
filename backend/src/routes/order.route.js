@@ -4,13 +4,16 @@ import {
   deleteOrder,
   getAllUserOrder,
   getOrdersForOwner,
+  updateOrderStatus,
 } from "../controller/order.contoller.js";
+import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
 
 const router = Router();
 
-router.route("/").post(createOrder);
+router.route("/create").post(ClerkExpressRequireAuth(), createOrder);
 router.route("/user/view/:userId").get(getAllUserOrder);
 router.route("/shop/view/:shopId").get(getOrdersForOwner);
-router.route("/:orderId").delete(deleteOrder); //On-hold
+router.route("/:orderId/update-status").patch( ClerkExpressRequireAuth(), updateOrderStatus);
+router.route("/:orderId").delete(ClerkExpressRequireAuth(), deleteOrder); //On-hold
 
 export default router;

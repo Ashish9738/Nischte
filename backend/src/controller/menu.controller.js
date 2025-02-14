@@ -114,31 +114,49 @@ export const getAllMenuOfShop = async (req, res) => {
 
 export const getXitems = async (req, res) => {
   try {
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";  
     const skip = (page - 1) * limit;
 
-    const menus = await Menu.find();
+    const searchQuery = {
+      $or: [
+        { 'items.itemName': { $regex: search, $options: 'i' } }, 
+        { 'items.itemDescription': { $regex: search, $options: 'i' } }
+      ]
+    };
 
-    const allItems = menus.reduce((acc, menu) => {
-      const itemsWithShop = menu.items.map((item) => ({
-        ...item.toObject(),
-        shopId: menu.shopId,
-      }));
-      return acc.concat(itemsWithShop);
-    }, []);
+    const menus = await Menu.aggregate([
+      { $match: searchQuery }, 
+      { $unwind: "$items" },    
+      { $skip: skip },     
+      { $limit: limit },      
+      {
+        $project: {
+          itemName: "$items.itemName",
+          itemDescription: "$items.itemDescription",
+          price: "$items.price",
+          picture: "$items.picture",
+          shopId: "$shopId",
+        }
+      },
+    ]);
 
-    const totalItems = allItems.length;
-    const totalPages = Math.ceil(totalItems / limit);
+    const totalItems = await Menu.aggregate([
+      { $match: searchQuery },
+      { $unwind: "$items" },
+      { $count: "totalItems" },
+    ]);
 
-    const paginatedItems = allItems.slice(skip, skip + limit);
+    const total = totalItems.length > 0 ? totalItems[0].totalItems : 0;
+    const totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
-      items: paginatedItems,
+      items: menus,
       pagination: {
         currentPage: page,
         itemsPerPage: limit,
-        totalItems: totalItems,
+        totalItems: total,
         totalPages: totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
@@ -146,11 +164,12 @@ export const getXitems = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      message: "Failed to get the menu",
+      message: "Failed to get the items",
       error: error.message,
     });
   }
 };
+
 
 export const updateMenu = async (req, res) => {
   try {

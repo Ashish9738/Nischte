@@ -2,7 +2,7 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import { Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectRoute";
 import { Home } from "./pages/Home";
-import { NotFound } from "./components/NotFound";
+import NotFound from "./components/NotFound";
 import { Shops } from "./pages/Shops";
 import { AboutUs } from "./pages/AboutUs";
 import { ContactUs } from "./pages/ContactUs";
@@ -18,11 +18,12 @@ import { UpdateMenu } from "./pages/UpdateMenu";
 import { UpdateOffer } from "./pages/UpdateOffer";
 import { Cart } from "./pages/Cart";
 import { CartProvider } from "./context/CartContext";
-import { Order } from "./pages/Order";
+// import { Order } from "./pages/Order";
 import { UserOrder } from "./pages/UserOrder";
 import { ShopOrders } from "./pages/ShopOrders";
 import { Items } from "./pages/Items";
 import { Support } from "./pages/Support";
+import { PaymentCallback } from "./pages/Payment";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -49,10 +50,12 @@ function App() {
             />
             <Route path="/cart" element={<Cart />} />
             <Route path="/:userId/order" element={<UserOrder />} />
-            <Route path="/order" element={<Order />} />
+            {/* <Route path="/order" element={<Order />} /> */}
             <Route path="/about-us" element={<AboutUs />} />
             <Route path="/contact-us" element={<ContactUs />} />
-
+            
+            <Route path="/payment/callback" element={<PaymentCallback />} />
+          
             <Route path="/shop">
               <Route
                 path="manage"
@@ -95,7 +98,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
+    
               <Route
                 path="update/:shopId"
                 element={
