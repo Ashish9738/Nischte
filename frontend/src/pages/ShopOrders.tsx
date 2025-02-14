@@ -1,7 +1,11 @@
-import { API } from "@/utils/api";
+import { FC, useCallback, useEffect, useState, useRef } from "react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { debounce } from "lodash";
 import axios from "axios";
-import { FC, useEffect, useState } from "react";
+import { API } from "@/utils/api";
 import { useParams } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import {
   Card,
   CardContent,
@@ -9,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -18,23 +24,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@clerk/clerk-react";
 
 interface OrderItem {
   _id: string;
-  itemId: string;
   itemName: string;
   quantity: number;
   basePrice: number;
-  originalPrice: number;
   finalPrice: number;
-  savings: number;
-  shopId: string;
-  totalItems: number;
-  appliedOffer: null | {
+  appliedOffer?: {
     offerId: string;
     offerName: string;
     description: string;
@@ -43,15 +40,20 @@ interface OrderItem {
 
 interface OrderDetails {
   _id: string;
-  userId: string;
-  cartTotal: number;
-  totalItems: number;
-  originalQuantity: number;
-  totalSavings: number;
-  items: OrderItem[];
   transactionId: string;
   createdAt?: string;
   status: string;
+  cartTotal: number;
+  totalItems: number;
+  totalSavings: number;
+  items: OrderItem[];
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalOrders: number;
+  hasMore: boolean;
 }
 
 export const ShopOrders: FC = () => {
@@ -59,26 +61,27 @@ export const ShopOrders: FC = () => {
   const [orders, setOrders] = useState<OrderDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { getToken } = useAuth();
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastOrderRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (loading) return;
+      if (observer.current) observer.current.disconnect();
 
-  const fetchOwnerOrderDetails = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get(
-        `${API}/api/v1/order/shop/view/${shopId}`
-      );
-      const sortedOrders = data.sort(
-        (a: OrderDetails, b: OrderDetails) =>
-          new Date(b.createdAt || "").getTime() -
-          new Date(a.createdAt || "").getTime()
-      );
-      setOrders(sortedOrders);
-    } catch (error) {
-      setError("Failed to fetch shop orders. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && pagination?.hasMore) {
+          setPage((prev) => prev + 1);
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [loading, pagination?.hasMore]
+  );
 
   const handlePickupStatus = async (orderId: string) => {
     try {
@@ -104,113 +107,151 @@ export const ShopOrders: FC = () => {
     }
   }
 
+
+  const fetchOrders = useCallback(async (search = "", pageNum = 1, append = false) => {
+    try {
+      setLoading(pageNum === 1);
+      setIsLoadingMore(pageNum > 1);
+      
+      const token = await getToken();
+      const { data } = await axios.get(
+        `${API}/api/v1/order/shop/view/${shopId}?search=${search}&page=${pageNum}&limit=10`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const sortedOrders = data.orders.sort(
+        (a: OrderDetails, b: OrderDetails) =>
+          new Date(b.createdAt || "").getTime() -
+          new Date(a.createdAt || "").getTime()
+      );
+
+      setOrders(prev => append ? [...prev, ...sortedOrders] : sortedOrders);
+      setPagination(data.pagination);
+    } catch (error) {
+      setError("Failed to fetch shop orders. Please try again later.");
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [shopId, getToken]);
+
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      setPage(1);
+      fetchOrders(query, 1, false);
+    }, 300),
+    [fetchOrders]
+  );
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
+  };
+
+  useEffect(() => {
+    if (shopId && page > 1) {
+      fetchOrders(searchQuery, page, true);
+    }
+  }, [page, shopId, fetchOrders, searchQuery]);
+
   useEffect(() => {
     if (shopId) {
-      fetchOwnerOrderDetails();
+      fetchOrders("", 1, false);
     }
-  }, [shopId]);
-
-  if (loading) {
-    return (
-      <>
-        <div className="px-6 md:px-[200px]">
-          <Navbar />
-          <h1 className="text-2xl font-bold mb-6">Shop Orders</h1>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 md:p-8">
-        <h1 className="text-2xl font-bold mb-6">Shop Orders</h1>
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="p-6 md:p-8">
-        <h1 className="text-2xl font-bold mb-6">Shop Orders</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>No Orders Found</CardTitle>
-            <CardDescription>
-              Your shop hasn't received any orders yet.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [shopId, fetchOrders, debouncedSearch]);
 
   return (
     <div className="px-6 md:px-[200px] flex flex-col min-h-screen">
       <Navbar />
       <div className="flex-grow">
-        <h1 className="text-2xl font-bold mb-6">Shop Orders</h1>
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Card
-              key={order._id}
-              className="shadow-sm hover:shadow-md transition-shadow"
-            >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">
-                      Order #{order._id.slice(-8)}
-                    </CardTitle>
-                    <CardDescription>
-                      Transaction ID: {order.transactionId}
-                    </CardDescription>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Shop Orders</h1>
+          <div className="w-1/3">
+            <Input
+              type="text"
+              placeholder="Search by Order ID..."
+              value={searchQuery}
+              onChange={handleSearch}
+              className="w-full"
+            />
+          </div>
+        </div>
+
+        {loading && page === 1 ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : orders.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>No Orders Found</CardTitle>
+              <CardDescription>
+                {searchQuery 
+                  ? "No orders match your search criteria."
+                  : "Your shop has no orders yet."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {orders.map((order, index) => (
+              <Card 
+                key={order._id} 
+                ref={index === orders.length - 1 ? lastOrderRef : null}
+                className="shadow-sm hover:shadow-md transition-shadow"
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">
+                        Order #{order._id.slice(-8)}
+                      </CardTitle>
+                      <CardDescription>
+                        Transaction ID: {order.transactionId}
+                        <br />
+                        Date: {new Date(order.createdAt || "").toLocaleDateString()}
+                      </CardDescription>
+                    </div>
+                    <Button
+                      disabled={order.status === "collected"}
+                      onClick={() => handlePickupStatus(order._id)}
+                      variant={order.status === "collected" ? "secondary" : "default"}
+                      className="capitalize"
+                    >
+                      {order.status || "pending"}
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={() => handlePickupStatus(order._id)}
-                    disabled={order.status === 'collected'}
-                    variant={order.status === 'collected' ? "secondary" : "default"}
-                    className="capitalize"
-                  >
-                    {order.status || 'pending'}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Rest of the component remains the same */}
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="items">
-                    <AccordionTrigger>
-                      Order Details ({order.totalItems} items)
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 mt-2">
-                        {order.items
-                          .filter((item) => item.shopId === shopId)
-                          .map((item) => (
-                            <div
-                              key={item._id}
-                              className="flex justify-between items-start border-b pb-3"
-                            >
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="items">
+                      <AccordionTrigger>
+                        Order Details ({order.totalItems} items)
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4 mt-2">
+                          {order.items.map((item) => (
+                            <div key={item._id} className="flex justify-between border-b pb-3">
                               <div>
                                 <p className="font-medium">{item.itemName}</p>
                                 <p className="text-sm text-gray-600">
                                   Quantity: {item.quantity} × ₹{item.basePrice}
                                 </p>
-                                {item.savings > 0 && (
-                                  <p className="text-sm text-green-600">
-                                    Savings: ₹{item.savings}
-                                  </p>
-                                )}
                                 {item.appliedOffer && (
                                   <Badge variant="default" className="mt-1">
                                     {item.appliedOffer.description}
@@ -218,35 +259,22 @@ export const ShopOrders: FC = () => {
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="font-medium">
-                                  ₹{item.finalPrice}
-                                </p>
-                                {item.originalPrice !== item.finalPrice && (
-                                  <p className="text-sm text-gray-600 line-through">
-                                    ₹{item.originalPrice}
-                                  </p>
-                                )}
+                                <p className="font-medium">₹{item.finalPrice}</p>
                               </div>
                             </div>
                           ))}
-                        <div className="flex justify-between text-sm">
-                          <span>Items Total</span>
-                          <span>₹{order.cartTotal}</span>
                         </div>
-                        {order.totalSavings > 0 && (
-                          <div className="flex justify-between text-sm text-green-600">
-                            <span>Total Savings</span>
-                            <span>-₹{order.totalSavings}</span>
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
+            ))}
+            {isLoadingMore && (
+              <Skeleton className="h-32 w-full" />
+            )}
+          </div>
+        )}
       </div>
       <Footer />
     </div>
