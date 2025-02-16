@@ -7,6 +7,7 @@ import { FRONTEND_URL, PHONEPE_HOST_URL, MERCHANT_ID, SALT_KEY, SALT_INDEX } fro
 export const initiatePayment = async (req, res) => {
   try {    
     const plainData = req.query.data;
+    console.log(plainData)
     if (!plainData) {
       return res.status(400).json({ message: "Missing data" });
     }
@@ -19,12 +20,14 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: "Invalid amount" });
     }
 
-    let merchantTransactionId = uniqid();
+    const merchantTransactionId = uniqid();
 
     const tempPaymentData = {
       merchantTransactionId,
       amount: amountInPaise
     };
+
+    console.log(merchantTransactionId);
 
     const encodedData = Buffer.from(JSON.stringify(tempPaymentData)).toString('base64');
 
