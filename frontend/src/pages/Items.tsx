@@ -2,19 +2,15 @@ import { FC, useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { debounce } from "lodash";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { API } from "@/utils/api";
 import { useNavigate } from "react-router-dom";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { useCart } from "@/context/CartContext";
+import { ItemCard } from "@/components/ItemCard";
+import { toast } from "sonner";
 
 interface Item {
   _id: string;
@@ -22,6 +18,8 @@ interface Item {
   itemDescription: string;
   price: number;
   picture: string;
+  shopId: string;
+  item: string;
 }
 
 interface ItemResponse {
@@ -39,13 +37,13 @@ interface ItemResponse {
 export const Items: FC = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [charLimit, _setCharLimit] = useState(70);
   const [page, setPage] = useState(1);
-  const [itemsPerPage] = useState(9);
+  const [itemsPerPage] = useState(16);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
+  
+  const { dispatch } = useCart();
   const navigate = useNavigate();
 
   const fetchItems = useCallback(async (currentPage: number, search: string = "") => {
@@ -58,7 +56,7 @@ export const Items: FC = () => {
       if (currentPage === 1) {
         setItems(res.data.items);
       } else {
-        setItems(prev => [...prev, ...res.data.items]);
+        setItems((prev) => [...prev, ...res.data.items]);
       }
 
       setTotal(res.data.pagination.totalItems);
@@ -92,12 +90,34 @@ export const Items: FC = () => {
     }
   };
 
-  const handleItemDetailsClick = (itemId: string) => {
-    navigate(`/item/${itemId}`);
+  const handleItemClick = (itemId: string, shopId: string) => {
+    try {
+      navigate(`/shop/${shopId}/menu/${itemId}`);
+    } catch (error) {
+      console.log("Failed to get item details");
+      toast.error("Failed to open item details");
+    }
+  };
+
+  const handleAddToCart = (item: any, quantity: number) => {
+    // Transform the item to match your cart structure
+    const cartItem = {
+      _id: item.id,
+      itemName: item.name,
+      price: item.price,
+      picture: item.image,
+      shopId: item.shopId,
+      itemDescription: '', 
+      item: item.id, 
+    };
+
+    for (let i = 0; i < quantity; i++) {
+      dispatch({ type: "ADD_TO_CART", payload: cartItem });
+    }
   };
 
   useEffect(() => {
-    fetchItems(1); // Fetch items on component mount
+    fetchItems(1);
   }, [fetchItems]);
 
   const shouldShowViewMore = !searchTerm && hasMore && items.length < total;
@@ -126,53 +146,22 @@ export const Items: FC = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {loading ? (
                   <SkeletonGrid count={items.length} />
                 ) : (
                   items.map((item) => (
-                    <Card
+                    <ItemCard
                       key={item._id}
-                      className="cursor-pointer mb-4 flex hover:shadow-lg transition-shadow"
-                      onClick={() => handleItemDetailsClick(item._id)}
-                    >
-                      <div className="w-[40%] h-[230px] sm:h-[300px]">
-                        <div className="relative w-full h-full">
-                          <img
-                            src={item?.picture}
-                            alt={`${item?.itemName}`}
-                            className="absolute inset-0 w-full h-full object-cover rounded-tl-md rounded-bl-md"
-                          />
-                        </div>
-                      </div>
-                      <div className="w-[60%]">
-                        <CardHeader>
-                          <CardTitle className="text-2xl">
-                            {item.itemName}
-                          </CardTitle>
-                          <CardDescription>
-                            <p>
-                              <span className="text-sm">
-                                {item.itemDescription.length > charLimit
-                                  ? `${item.itemDescription.substring(0, charLimit)}...`
-                                  : item.itemDescription}
-                              </span>
-                            </p>
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p>
-                            <span className="font-bold text-[10px] sm:text-lg sm:font-semibold">
-                              Price
-                            </span>
-                            :
-                            <span className="pl-1 text-[10px] sm:text-sm">
-                              ${item.price}
-                            </span>
-                          </p>
-                        </CardContent>
-                      </div>
-                    </Card>
+                      id={item._id}
+                      shopId={item.shopId}
+                      name={item.itemName}
+                      image={item.picture}
+                      price={item.price}
+                      currency="₹"
+                      onItemClick={handleItemClick}
+                      onAddToCart={handleAddToCart}
+                    />
                   ))
                 )}
               </div>

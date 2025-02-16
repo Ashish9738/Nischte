@@ -6,39 +6,53 @@ export const cartReducer = (
 ): CartState => {
   switch (action.type) {
     case "ADD_TO_CART": {
-      const existingItemIndex = state.items.findIndex(
-        (item) => item._id === action.payload._id
-      );
-
+      const existingShopId = state.items.length > 0 ? state.items[0].shopId : null;
+    
       let newItems: CartItem[];
-      if (existingItemIndex >= 0) {
-        newItems = state.items.map((item, index) =>
-          index === existingItemIndex
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
+      if (existingShopId && existingShopId !== action.payload.shopId) {
+        // If adding from a different shop, replace cart with the new item
         newItems = [
-          ...state.items,
           {
             ...action.payload,
             quantity: 1,
             shopId: action.payload.shopId,
-            item: action.payload.item,
           },
         ];
+      } else {
+        // If same shop, add or update the item
+        const existingItemIndex = state.items.findIndex(
+          (item) => item._id === action.payload._id
+        );
+    
+        if (existingItemIndex >= 0) {
+          newItems = state.items.map((item, index) =>
+            index === existingItemIndex
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          );
+        } else {
+          newItems = [
+            ...state.items,
+            {
+              ...action.payload,
+              quantity: 1,
+              shopId: action.payload.shopId,
+            },
+          ];
+        }
       }
-
+    
       const newTotal = newItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
       );
-
+    
       return {
         items: newItems,
         total: newTotal,
       };
     }
+    
 
     case "REMOVE_FROM_CART": {
       const newItems = state.items.filter(

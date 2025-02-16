@@ -98,6 +98,7 @@ export const Offer: FC = () => {
   };
 
   const handleOfferUpdate = (offerId: string): void => {
+    console.log("here at update offer")
     navigate(`/shop/${shopId}/menu/${menuId}/offer/${offerId}/update`);
   };
 
@@ -156,13 +157,13 @@ export const Offer: FC = () => {
                       <div className="flex justify-between items-center pt-2">
                         <p className="font-semibold">{offer.offerType.name}</p>
                         <div className="space-x-2 pr-2">
-                          <Button className="p-2">
-                            <FaPen
-                              size={18}
+                          <Button className="p-2" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOfferUpdate(offer._id);
-                              }}
+                              }}>
+                            <FaPen
+                              size={18}
                             />
                           </Button>
                           <AlertDialog>

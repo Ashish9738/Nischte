@@ -14,6 +14,7 @@ import { API } from "@/utils/api";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { ImCancelCircle } from "react-icons/im";
+import { Link } from "react-router-dom";
 
 declare global {
   interface Window {
@@ -87,6 +88,7 @@ export const Cart = () => {
             .flatMap((item) => item.offerId)
         )
       );
+      console.log(state.items)
 
       if (offerIds.length === 0) {
         setApplicableOffers([]);
@@ -104,6 +106,7 @@ export const Cart = () => {
           }
         }
       );
+      console.log("eligibe offers: ", eligibleResponse);
 
       if (eligibleResponse.data.success) {
         const eligibleOffers = eligibleResponse.data.applicableOffers;
@@ -119,6 +122,7 @@ export const Cart = () => {
               params: { offerId: eligibleOfferIds },
             }
           );
+          console.log("offers details: ", detailsResponse);
           if (detailsResponse.data.offers) {
             setOfferDetails(detailsResponse.data.offers);
           }
@@ -276,6 +280,7 @@ export const Cart = () => {
       const token = await getToken();
       const plainData = JSON.stringify({
         amount: cartTotal,
+        timeStamp: Date.now()
       });
   
       const response = await axios.get(
@@ -292,6 +297,7 @@ export const Cart = () => {
         console.log("response data: payement: ", response.data)
         window.location.href = response.data.redirectUrl;
       } else {
+        localStorage.removeItem('currentTransactionId');
         toast.error("Payment initiation failed");
       }
     } catch (error) {
@@ -322,54 +328,63 @@ export const Cart = () => {
           <div className="flex-grow space-y-8">
             {/* Cart Items */}
             <div className="space-y-4">
-              {state.items.map((item) => (
-                <Card key={item._id} className="p-4">
-                  <div className="flex items-start gap-4">
-                    <img
-                      src={item.picture}
-                      alt={item.itemName}
-                      className="w-20 h-20 object-cover rounded"
-                    />
-                    <div className="flex-grow">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold">{item.itemName}</h3>
-                        <ImCancelCircle onClick={() => handleItemCancel(item._id)}/>
-                      </div>
-                      <p className="text-lg">₹{item.price}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleUpdateQuantity(item._id, item.quantity - 1)
-                          }
-                        >
-                          <FaMinus className="h-3 w-3" />
-                        </Button>
-                        <Input
-                          className="w-20 text-center"
-                          value={quantities[item._id] || item.quantity}
-                          onChange={(e) =>
-                            handleQuantityChange(item._id, e.target.value)
-                          }
-                          onBlur={() =>
-                            handleQuantityBlur(item._id, item.quantity)
-                          }
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleUpdateQuantity(item._id, item.quantity + 1)
-                          }
-                        >
-                          <FaPlus className="h-3 w-3" />
-                        </Button>
+              {state.items.length === 0 ? (
+                 <div className="flex  items-center gap-x-2">
+                 <p className="text-lg">Your cart is empty.</p>
+                 <Link to="/shops" className="text-gray-500">
+                   Continue Shopping
+                 </Link>
+               </div>
+              ) : (
+                state.items.map((item) => (
+                  <Card key={item._id} className="p-4">
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={item.picture}
+                        alt={item.itemName}
+                        className="w-20 h-20 object-cover rounded"
+                      />
+                      <div className="flex-grow">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-bold">{item.itemName}</h3>
+                          <ImCancelCircle onClick={() => handleItemCancel(item._id)}/>
+                        </div>
+                        <p className="text-lg">₹{item.price}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleUpdateQuantity(item._id, item.quantity - 1)
+                            }
+                          >
+                            <FaMinus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            className="w-20 text-center"
+                            value={quantities[item._id] || item.quantity}
+                            onChange={(e) =>
+                              handleQuantityChange(item._id, e.target.value)
+                            }
+                            onBlur={() =>
+                              handleQuantityBlur(item._id, item.quantity)
+                            }
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleUpdateQuantity(item._id, item.quantity + 1)
+                            }
+                          >
+                            <FaPlus className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                ))
+              ) }
             </div>
 
             {/* Offers Section */}

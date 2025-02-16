@@ -1,55 +1,99 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { API } from '@/utils/api';
 import axios from 'axios';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { useNotifications } from '@/utils/firebase';
 
 export const PaymentCallback = () => {
+    const { requestNotification } = useNotifications();
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(true);
+    const { user } = useUser();
+    const userId = user?.id as string;
     const { getToken } = useAuth();
 
+    const hasRun = useRef(false);
+
     useEffect(() => {
+        if (hasRun.current) return; 
+        hasRun.current = true; 
+
         const handleCallback = async () => {
             try {
-                console.log("first")
                 const token = await getToken();
-                console.log("token", token);
+                if (!token) throw new Error("Authorization token not available");
+
                 const txnId = localStorage.getItem('currentTransactionId');
                 if (!txnId) throw new Error('Transaction ID not found');
 
                 const response = await axios.get(`${API}/api/v1/payment/validate/${txnId}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
+                    headers: { "Authorization": `Bearer ${token}` }
                 });
-                if (!response.data.success) throw new Error('Payment validation failed');
+
+                if (!response.data.success) throw new Error(response.data.message || 'Payment validation failed');
 
                 const orderSummary = localStorage.getItem('orderSummary');
+                console.log("order summ == ", orderSummary);
                 if (!orderSummary) throw new Error('Order summary not found');
 
-                const parsedOrderSummary = JSON.parse(orderSummary);
+                let parsedOrderSummary;
+                try {
+                    parsedOrderSummary = JSON.parse(orderSummary);
+                } catch (err) {
+                    throw new Error('Invalid order summary format');
+                }
 
-                const orderData = {
-                    ...parsedOrderSummary,
-                    transactionId: txnId,
-                };
-                console.log("token here in payment: ", token);
+                const orderData = { ...parsedOrderSummary, transactionId: txnId };
+
                 const orderResponse = await axios.post(`${API}/api/v1/order/create`, orderData, {
-                    headers: {
-
-                        "Authorization": `Bearer ${token}`
-                    }
+                    headers: { "Authorization": `Bearer ${token}` }
                 });
 
-                if (!orderResponse.data.success) throw new Error('Order creation failed');
+                if (!orderResponse.data.success) throw new Error(orderResponse.data.message || 'Order creation failed');
 
-                localStorage.removeItem('orderSummary');
-                localStorage.removeItem('currentTransactionId');
-                const userId = orderResponse.data.order.userId;
-                navigate(`/${userId}/order`);
+                localStorage.removeItem("currentTransactionId");
+
+                const shopId = orderResponse.data.order.items[0].shopId;
+
+                const shopResponse = await axios.get(`${API}/api/v1/shop/${shopId}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (shopResponse.data.success) {
+                    const shopOwnerId = shopResponse.data.shop.ownerId;
+
+                    await requestNotification(userId);
+
+                    const fcmTokenResponse = await axios.get(`${API}/api/v1/user/fcmToken/${shopOwnerId}`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+
+                    if (fcmTokenResponse.data.success) {
+                        const fcmToken = fcmTokenResponse.data.fcmToken;
+
+                        if (fcmToken) {
+                            const orderItems = parsedOrderSummary.items.map(
+                                (item: any) => `${item.itemName} (x${item.quantity})`
+                            ).join(", ");
+
+                            const notificationBody = `You have a new order: ${orderItems}. Total: ₹${parsedOrderSummary.cartTotal}`;
+
+                            await axios.post(`${API}/api/v1/u/notifications/send`, {
+                                fcmToken,
+                                title: 'New Order Received',
+                                body: notificationBody
+                            }, {
+                                headers: { "Authorization": `Bearer ${token}` }
+                            });
+                        }
+                    }
+                }
+
+                navigate(`/${orderResponse.data.order.userId}/order`);
             } catch (error) {
+                localStorage.removeItem("currentTransactionId");
                 console.error('Error in payment processing:', error);
                 toast.error(error instanceof Error ? error.message : 'Payment processing failed.');
                 navigate('/payment/failure');
@@ -59,7 +103,7 @@ export const PaymentCallback = () => {
         };
 
         handleCallback();
-    }, [navigate]);
+    }, [navigate, getToken, requestNotification, userId]); 
 
     return (
         <div className="min-h-screen flex items-center justify-center">
